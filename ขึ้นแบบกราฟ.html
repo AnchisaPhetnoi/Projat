@@ -1,0 +1,53 @@
+#include <ESP8266WiFi.h>
+#include <ESP8266HTTPClient.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
+
+const char* ssid = "anc";         // ชื่อ Wi-Fi
+const char* password = "123456789";  // รหัสผ่าน Wi-Fi
+
+#define ONE_WIRE_BUS 2    // GPIO 2 ที่เชื่อมต่อกับ DS18B20
+#define RELAY_PIN 14      // GPIO 14 ที่เชื่อมต่อกับรีเลย์
+
+OneWire oneWire(ONE_WIRE_BUS);
+DallasTemperature sensors(&oneWire);
+
+void setup() {
+  Serial.begin(115200);      // เริ่มการสื่อสาร Serial
+  WiFi.begin(ssid, password);
+  Serial.print("Connecting to WiFi");
+
+  // รอจนกว่า Wi-Fi จะเชื่อมต่อสำเร็จ
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    Serial.print(".");
+  }
+
+  Serial.println("\nConnected to WiFi");
+
+  // เริ่มการอ่านอุณหภูมิ
+  sensors.begin();
+
+  // กำหนดพินรีเลย์เป็น output
+  pinMode(RELAY_PIN, OUTPUT);
+
+  // ตั้งค่าเริ่มต้นของรีเลย์
+  digitalWrite(RELAY_PIN, LOW);
+}
+
+void loop() {
+  sensors.requestTemperatures();  // สั่งให้เซ็นเซอร์ DS18B20 อ่านค่าอุณหภูมิ
+  float temperature = sensors.getTempCByIndex(0);  // อ่านค่าอุณหภูมิในรูปแบบองศาเซลเซียส
+
+  // แสดงค่าอุณหภูมิในรูปแบบที่ Serial Plotter อ่านได้
+  Serial.println(temperature);  // พิมพ์ค่าอุณหภูมิอย่างเดียวเพื่อให้ Plotter แสดงผลเป็นกราฟ
+
+  // ตรวจสอบค่าอุณหภูมิและควบคุมรีเลย์
+  if (temperature > 30.0) {  // หากอุณหภูมิเกิน 30 องศา ให้เปิดปั้มน้ำ
+    digitalWrite(RELAY_PIN, HIGH);
+  } else {  // หากอุณหภูมิต่ำกว่า 30 องศา ให้ปิดปั้มน้ำ
+    digitalWrite(RELAY_PIN, LOW);
+  }
+
+  delay(1000);  // หน่วงเวลา 1 วินาทีเพื่อให้การแสดงผลไม่เร็วเกินไป
+}
