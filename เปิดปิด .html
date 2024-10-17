@@ -1,0 +1,33 @@
+#include <OneWire.h>
+#include <DallasTemperature.h>
+
+#define ONE_WIRE_BUS 2  // ขาที่เชื่อมต่อกับเซนเซอร์ DS18B20
+#define RELAY_PIN 12     // ขาที่เชื่อมต่อกับรีเลย์
+
+OneWire oneWire(ONE_WIRE_BUS);
+DallasTemperature sensors(&oneWire);
+
+void setup() {
+  Serial.begin(9600);
+  sensors.begin();
+  pinMode(RELAY_PIN, OUTPUT);  // ตั้งค่าขารีเลย์เป็น OUTPUT
+}
+
+void loop() {
+  sensors.requestTemperatures(); // ขออุณหภูมิ
+  float temperature = sensors.getTempCByIndex(0); // อ่านอุณหภูมิ
+  Serial.print("Temperature: ");
+  Serial.print(temperature);
+  Serial.println(" °C");
+
+  // กำหนดเงื่อนไขสำหรับเปิด/ปิดปั๊ม
+  if (temperature > 30.0) { // เปลี่ยนค่า 30.0 ตามที่ต้องการ
+    digitalWrite(RELAY_PIN, HIGH); // เปิดปั๊ม
+    Serial.println("Pump is ON");
+  } else {
+    digitalWrite(RELAY_PIN, LOW); // ปิดปั๊ม
+    Serial.println("Pump is OFF");
+  }
+
+  delay(5000); // หยุดทำงานเป็นเวลา 5 วินาที
+}
