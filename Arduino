@@ -1,0 +1,41 @@
+#include <OneWire.h>
+#include <DallasTemperature.h>
+
+#define ONE_WIRE_BUS 2  // ขาที่เชื่อมต่อกับเซนเซอร์ DS18B20
+#define RELAY_PIN 12     // ขาที่เชื่อมต่อกับรีเลย์
+
+OneWire oneWire(ONE_WIRE_BUS);  // เซตอัพการเชื่อมต่อ OneWire สำหรับเซนเซอร์ DS18B20
+DallasTemperature sensors(&oneWire);  // ตั้งค่าการเชื่อมต่อเซนเซอร์
+
+// ตั้งค่าการเชื่อมต่อ Wi-Fi
+const char* ssid = "anc";        // เปลี่ยนเป็น SSID ของคุณ
+const char* password = "123456789"; // เปลี่ยนเป็น Password ของคุณ
+
+// ตั้งค่าการเชื่อมต่อ MQTT
+const char* mqtt_server = "broker.netpie.io";
+
+
+void setup() {
+  Serial.begin(9600);
+  sensors.begin();  // เริ่มต้นการทำงานของเซนเซอร์ DS18B20
+  pinMode(RELAY_PIN, OUTPUT);  // ตั้งค่าขารีเลย์เป็น OUTPUT
+}
+
+void loop() {
+  sensors.requestTemperatures(); // ขออุณหภูมิจากเซนเซอร์
+  float temperature = sensors.getTempCByIndex(0); // อ่านค่าอุณหภูมิจากเซนเซอร์ตัวแรก
+  Serial.print("Temperature: ");
+  Serial.print(temperature);
+  Serial.println(" °C");
+
+  // กำหนดเงื่อนไขสำหรับเปิด/ปิดปั๊ม
+  if (temperature > 30.0) { // ถ้าอุณหภูมิมากกว่า 30 องศา
+    digitalWrite(RELAY_PIN, HIGH); // เปิดปั๊ม
+    Serial.println("Pump is ON");
+  } else {
+    digitalWrite(RELAY_PIN, LOW); // ปิดปั๊ม
+    Serial.println("Pump is OFF");
+  }
+
+  delay(5000); // หยุดทำงานเป็นเวลา 5 วินาที
+}
