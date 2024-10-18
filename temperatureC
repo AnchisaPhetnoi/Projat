@@ -1,0 +1,77 @@
+#include <OneWire.h>
+#include <DallasTemperature.h>
+#include <ESP8266WiFi.h>
+#include <WiFiClient.h>
+#include <HTTPClient.h>
+
+#define ONE_WIRE_BUS D2    // ขา D2 (GPIO4) ต่อกับขา DATA ของ DS18B20
+#define RELAY_PIN D1       // ขา D1 (GPIO5) ใช้ควบคุมรีเลย์
+
+const char* ssid = "Your_SSID";         // ใส่ SSID ของคุณ
+const char* password = "Your_PASSWORD"; // ใส่รหัสผ่าน Wi-Fi ของคุณ
+const String lineNotifyToken = "Your_LINE_NOTIFY_TOKEN"; // ใส่ LINE Notify Token ที่ได้มา
+
+OneWire oneWire(ONE_WIRE_BUS);            // เริ่มการทำงานของ OneWire
+DallasTemperature sensors(&oneWire);      // ใช้งานเซ็นเซอร์ DS18B20
+
+void setup(void) {
+  Serial.begin(115200);
+  sensors.begin();                         // เริ่มการทำงานของเซ็นเซอร์
+  pinMode(RELAY_PIN, OUTPUT);              // ตั้งขารีเลย์เป็น OUTPUT
+  digitalWrite(RELAY_PIN, HIGH);           // ปิดรีเลย์ตอนเริ่มต้น
+  
+  // เชื่อมต่อ Wi-Fi
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    Serial.println("Connecting to WiFi...");
+  }
+  Serial.println("Connected to WiFi");
+}
+
+void sendLineNotify(String message) {
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+    http.begin("https://notify-api.line.me/api/notify");
+    http.addHeader("Content-Type", "application/x-www-form-urlencoded");
+    http.addHeader("Authorization", "Bearer " + lineNotifyToken);
+    
+    String payload = "message=" + message;
+    int httpResponseCode = http.POST(payload);
+    
+    if (httpResponseCode > 0) {
+      String response = http.getString();
+      Serial.println(httpResponseCode); // แสดงรหัสสถานะ
+      Serial.println(response); // แสดงข้อความตอบกลับ
+    } else {
+      Serial.print("Error on sending: ");
+      Serial.println(httpResponseCode);
+    }
+    
+    http.end();
+  }
+}
+
+void loop(void) {
+  sensors.requestTemperatures();           // ขอข้อมูลอุณหภูมิจากเซ็นเซอร์
+  float temperatureC = sensors.getTempCByIndex(0);  // อ่านค่าอุณหภูมิ (องศาเซลเซียส)
+
+  Serial.print("Temperature: ");
+  Serial.print(temperatureC);
+  Serial.println(" °C");
+
+  // ถ้าอุณหภูมิสูงกว่า 30°C เปิดปั้มน้ำ
+  if (temperatureC > 30.0) {
+    digitalWrite(RELAY_PIN, LOW);          // เปิดรีเลย์ (ปั้มน้ำทำงาน)
+    Serial.println("Pump ON");
+    sendLineNotify("ปั้มน้ำทำงาน (อุณหภูมิ: " + String(temperatureC) + " °C)"); // ส่งข้อความแจ้งเตือน
+  } 
+  // ถ้าอุณหภูมิต่ำกว่า 30°C ปิดปั้มน้ำ
+  else {
+    digitalWrite(RELAY_PIN, HIGH);         // ปิดรีเลย์ (ปั้มน้ำหยุด)
+    Serial.println("Pump OFF");
+    sendLineNotify("ปั้มน้ำหยุด (อุณหภูมิ: " + String(temperatureC) + " °C)"); // ส่งข้อความแจ้งเตือน
+  }
+  
+  delay(2000);  // อ่านค่าใหม่ทุก 2 วินาที
+}
