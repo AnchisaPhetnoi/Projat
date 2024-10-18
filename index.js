@@ -109,4 +109,4 @@
         setInterval(updateTemperature, 5000);
     </script>
 </body>
-</html>
+
